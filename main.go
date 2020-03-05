@@ -66,6 +66,57 @@ func parseConfig(manager *ServiceManager, filename string) error {
 	return nil
 }
 
+type ServiceList struct {
+	*tview.List
+	services       []string
+	serviceIndexes map[string]int
+}
+
+func NewServiceList(services []string) *ServiceList {
+	list := &ServiceList{
+		List:           tview.NewList().ShowSecondaryText(false),
+		services:       []string{},
+		serviceIndexes: map[string]int{},
+	}
+	for _, service := range services {
+		list.addService(service)
+	}
+
+	return list
+}
+
+func (l *ServiceList) addService(name string) {
+	index := len(l.services)
+	l.services = append(l.services, name)
+	l.serviceIndexes[name] = index
+	l.AddItem(name, "", 0, func() {})
+	l.SetState(name, StateDead)
+}
+
+var serviceListStateNames = map[State]string{
+	StateDead:     "dead",
+	StateFailed:   "failed",
+	StateRunning:  "running",
+	StateStarted:  "started",
+	StateFinished: "finished",
+}
+var serviceListStateColors = map[State]string{
+	StateDead:     "grey",
+	StateFailed:   "red",
+	StateRunning:  "green",
+	StateStarted:  "yellow",
+	StateFinished: "white",
+}
+
+func (l *ServiceList) SetState(name string, state State) {
+	mainText := fmt.Sprintf("[%s]●[-] %s (%s)",
+		serviceListStateColors[state],
+		name,
+		serviceListStateNames[state],
+	)
+	l.SetItemText(l.serviceIndexes[name], mainText, "")
+}
+
 var configPath = flag.String("config", "config.yaml", "path to config file")
 
 func main() {
@@ -85,11 +136,8 @@ func main() {
 
 	app := tview.NewApplication()
 
-	serviceList := tview.NewList().ShowSecondaryText(false)
+	serviceList := NewServiceList(services)
 	serviceList.SetBorder(true)
-	for _, name := range services {
-		serviceList.AddItem("[red]● [-]"+name, "", 0, func() {})
-	}
 	pages := tview.NewPages().SetBorder(true)
 	input := tview.NewInputField()
 
